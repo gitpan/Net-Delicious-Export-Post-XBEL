@@ -7,5 +7,6 @@ WriteMakefile(NAME=>"Net::Delicious::Export::Post::XBEL",
 	      'PREREQ_PM'    => {"Net::Delicious"          => '0.3',
 				 "Net::Delicious::Export"  => '1.0',
 				 "MD5"                     => 0,
+				 "Memoize"                 => 0,
 				 "Test::More"              => 0,},
 	     );

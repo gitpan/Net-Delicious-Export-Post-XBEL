@@ -1,5 +1,9 @@
-# $Id: Changes,v 1.1 2004/02/09 19:40:04 asc Exp $
+# $Id: Changes,v 1.3 2004/02/10 18:59:18 asc Exp $
+
+1.1      Tue Feb 10 2004
+
+	 - Added 'by_tag' object method.
 
 1.0      Mon Feb 09 2004
 
-	 - initial release
+	 - Initial release.
