@@ -36,7 +36,7 @@ This package subclasses I<Net::Delicious::Export>.
 =cut
 
 use vars qw ($VERSION);
-$VERSION = '1.2';
+$VERSION = '1.3';
 
 use Net::Delicious::Export::Post qw (group_by_tag
 				     mk_bookmarkid);
@@ -290,8 +290,8 @@ sub bookmark {
 						     Prefix       => "",
 						     NamespaceURI => "",
 						     Value        => &mk_bookmarkid($bm)},
-					  "{}url" => {Name         => "url",
-						      LocalName    => "url",
+					  "{}href" => {Name        => "href",
+						      LocalName    => "href",
 						      Prefix       => "",
 						      NamespaceURI => "",
 						      Value        => $bm->href() } ,
@@ -347,9 +347,9 @@ sub start_document {
     $self->characters({Data=>$title});
     $self->end_element({Name => "title"});
 
-    $self->start_element({Name => "description"});
+    $self->start_element({Name => "desc"});
     $self->characters({Data=>"Created by ".__PACKAGE__.", $VERSION"});
-    $self->end_element({Name => "description"});
+    $self->end_element({Name => "desc"});
 
     return 1;
 }
@@ -392,7 +392,7 @@ sub _hasfolderid {
 
 =head1 VERSION
 
-1.2
+1.3
 
 =head1 DATE
 
