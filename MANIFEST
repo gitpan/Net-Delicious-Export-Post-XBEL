@@ -1,0 +1,6 @@
+Changes
+lib/Net/Delicious/Export/Post/XBEL.pm
+Makefile.PL
+MANIFEST
+t/01-load.t
+META.yml                                 Module meta-data (added by MakeMaker)
