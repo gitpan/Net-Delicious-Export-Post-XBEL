@@ -3,11 +3,12 @@ use strict;
 package Net::Delicious::Export::Post::XBEL;
 use base qw (Net::Delicious::Export);
 
-# $Id: XBEL.pm,v 1.6 2004/02/10 18:59:18 asc Exp $
+# $Id: XBEL.pm,v 1.8 2004/02/12 13:51:16 asc Exp $
 
 =head1 NAME
 
-Net::Delicious::Export::Post::XBEL - export your del.icio.us posts as XBEL
+Net::Delicious::Export::Post::XBEL - export your del.icio.us posts as 
+XBEL SAX events
 
 =head1 SYNOPSIS
 
@@ -28,19 +29,19 @@ Net::Delicious::Export::Post::XBEL - export your del.icio.us posts as XBEL
 
 =head1 DESCRIPTION
  
-Export your del.icio.us posts as XBEL.
+Export your del.icio.us posts as XBEL SAX events.
 
 This package subclasses I<Net::Delicious::Export>.
 
 =cut
 
 use vars qw ($VERSION);
-$VERSION = '1.1';
+$VERSION = '1.2';
 
-use MD5;
-use Memoize;
+use Net::Delicious::Export::Post qw (group_by_tag
+				     mk_bookmarkid);
 
-&memoize("mk_bookmarkid");
+use String::Random qw (random_string);
 
 =head1 PACKAGE METHODS
 
@@ -106,6 +107,7 @@ sub by_date {
     #
 
     my $last_date = undef;
+    my $folder    = 0;
 
     while (my $bm = $args->{posts}->next()) {
 
@@ -115,8 +117,16 @@ sub by_date {
 	#
 
 	if ($this_date ne $last_date) {
+
+	    if ($folder) {
+		$self->end_folder();
+		$folder = 0;
+	    }
+
 	    $self->start_folder($this_date);
-	    $last_date = $this_date
+
+	    $last_date = $this_date;
+	    $folder    = 1;
 	}
 
 	#
@@ -126,7 +136,9 @@ sub by_date {
 
     #
 
+    $self->end_folder();
     $self->end_document();
+
     return 1;
 }
 
@@ -164,6 +176,12 @@ Bookmarks with multiple tags will be added once; subsequent
 instances of the same bookmark will use XBEL's <alias> element
 to refer back to the first URL.
 
+Bookmarks for any given tag set will be ordered by their 
+timestamp.
+
+Tags which use del.icio.us' "hierarchical tag" structure will
+be rendered as nested <folder> elements.
+
 Multiple tags for a bookmark will be ordered alphabetically or
 using the same I<sort> argument passed to the method.
 
@@ -182,64 +200,58 @@ sub by_tag {
 	$sort = $args->{sort};
     }
 
+    # use Data::Denter;
+    # print Indent(&group_by_tag($args->{posts},$sort));
+    # exit;
+
     #
 
     $self->start_document($args->{title});
 
-    #
-
-    my %ordered = ();
-
-    while (my $bm = $args->{posts}->next()) {
-
-	# Create a list of tags
-
-	my $tag = $bm->tag() || "unsorted";
-	$tag =~ s/\s+//;
-
-	my @tags = sort $sort split(/[\s,]/,$tag);
-
-	# Pull the first tag off the list
-	# and use it as the actual bookmark
-
-	$ordered{ shift @tags }->{ $bm->time() } = $bm;
-
-	# Everything else is just an alias
-
-	map { 
-	    $ordered{ $_ }->{ $bm->time() } = &mk_bookmarkid($bm);
-	} @tags;
-    }
-
-    #
-
-    my $last_tag = undef;
-
-    foreach my $tag (sort $sort keys %ordered) {
-
-	if ($last_tag ne $tag) {
-
-	    $self->start_folder($tag);
-	    $last_tag = $tag;
-	}
-
-	foreach my $dt (sort {$a cmp $b} keys %{$ordered{$tag}}) {
-
-	    my $bm = $ordered{ $tag }->{ $dt };
-
-	    if (ref($bm)) {
-		$self->bookmark($bm);
-	    }
-
-	    else {
-		$self->alias($bm);
-	    }
-	}
-    }
-
-    #
+    $self->tags(&group_by_tag($args->{posts},$sort),$sort);
 
     $self->end_document();
+    return 1;
+}
+
+sub tags {
+    my $self = shift;
+    my $dict = shift;
+    my $sort = shift;
+
+    foreach my $tag (sort $sort keys %$dict) {
+
+	$self->start_folder($tag);
+	
+	my $item = $dict->{$tag};
+	my $ref  = ref($item);
+
+	if ($ref eq "ARRAY") {
+	    
+	    map { 
+		if (ref($_) eq "Net::Delicious::Post") {
+		    $self->bookmark($_);
+		}
+
+		elsif (ref($_) eq "Net::Delicious::Export::Post::Bookmarkid") {
+		    $self->alias($_);
+		}
+
+		else {}
+		    
+	    } @$item;
+	    
+	}
+	
+	elsif ($ref eq "HASH") {
+	    $self->tags($item,$sort);
+	}
+	
+	else {}
+
+	$self->end_folder();
+    }
+
     return 1;
 }
 
@@ -247,24 +259,16 @@ sub start_folder {
     my $self  = shift;
     my $title = shift;
 
-    $self->end_folder();
-
-    #
-
     $self->start_element({Name => "folder",
 			  Attributes => {"{}id" => {Name         => "id",
 						    LocalName    => "id",
 						    Prefix       => "",
 						    NamespaceURI => "",
-						    Value        => $title},}});
+						    Value        => $self->_folderid($title)},}});
 
     $self->start_element({Name => "title"});
     $self->characters({Data=>$title});
     $self->end_element({Name => "title"});
-    
-    #
-    
-    $self->{'__folder'} = 1;
     
     return 1;
 }
@@ -272,11 +276,7 @@ sub start_folder {
 sub end_folder {
     my $self = shift;
 
-    if ($self->{'__folder'}) {
-	$self->end_element({Name => "folder"});
-	$self->{'__folder'} = 0;
-    }
-
+    $self->end_element({Name => "folder"});
     return 1;
 }
 
@@ -294,7 +294,12 @@ sub bookmark {
 						      LocalName    => "url",
 						      Prefix       => "",
 						      NamespaceURI => "",
-						      Value        => $bm->href() } }});
+						      Value        => $bm->href() } ,
+					  "{}visited" => {Name         => "visited",
+							  LocalName    => "visited",
+							  Prefix       => "",
+							  NamespaceURI => "",
+							  Value        => $bm->time() } }});
     
     if (my $txt = $bm->description()) {
 	$self->start_element({Name => "title"});
@@ -352,8 +357,6 @@ sub start_document {
 sub end_document {
     my $self = shift;
 
-    $self->end_folder();
-
     #
 
     $self->end_element({Name => "xbel"});
@@ -362,20 +365,38 @@ sub end_document {
     return 1;
 }
 
-# Memoized
+sub _folderid {
+    my $self  = shift;
+    my $title = shift;
 
-sub mk_bookmarkid {
-    my $bm = shift;
-    return MD5->hexhash($bm->href());
+    if (! $self->_hasfolderid($title)) {
+	push @{$self->{"__folders"}}, $title;
+	return $title;
+    }
+
+    $self->_folderid(join(":","GENID",&random_string("ccccccccccccc")));
+}
+
+sub _hasfolderid {
+    my $self = shift;
+    my $id   = shift;
+    
+    foreach (@{$self->{"__folders"}}) {
+	if ($_ =~ /^($id)$/) {
+	    return 1;
+	}
+    } 
+
+    return 0;
 }
 
 =head1 VERSION
 
-1.1
+1.2
 
 =head1 DATE
 
-$Date: 2004/02/10 18:59:18 $
+$Date: 2004/02/12 13:51:16 $
 
 =head1 AUTHOR
 

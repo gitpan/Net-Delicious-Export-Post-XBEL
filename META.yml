@@ -1,14 +1,13 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         Net-Delicious-Export-Post-XBEL
-version:      1.1
+version:      1.2
 version_from: lib/Net/Delicious/Export/Post/XBEL.pm
 installdirs:  site
 requires:
-    MD5:                           0
-    Memoize:                       0
     Net::Delicious:                0.3
-    Net::Delicious::Export:        1.0
+    Net::Delicious::Export:        1.1
+    String::Random:                0
     Test::More:                    0
 
 distribution_type: module
