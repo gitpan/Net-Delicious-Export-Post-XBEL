@@ -3,7 +3,7 @@ use strict;
 package Net::Delicious::Export::Post::XBEL;
 use base qw (Net::Delicious::Export);
 
-# $Id: XBEL.pm,v 1.8 2004/02/12 13:51:16 asc Exp $
+# $Id: XBEL.pm,v 1.10 2005/12/11 19:17:00 asc Exp $
 
 =head1 NAME
 
@@ -36,7 +36,7 @@ This package subclasses I<Net::Delicious::Export>.
 =cut
 
 use vars qw ($VERSION);
-$VERSION = '1.3';
+$VERSION = '1.4';
 
 use Net::Delicious::Export::Post qw (group_by_tag
 				     mk_bookmarkid);
@@ -392,11 +392,11 @@ sub _hasfolderid {
 
 =head1 VERSION
 
-1.3
+1.4
 
 =head1 DATE
 
-$Date: 2004/02/12 13:51:16 $
+$Date: 2005/12/11 19:17:00 $
 
 =head1 AUTHOR
 
